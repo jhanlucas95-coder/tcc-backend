@@ -18,10 +18,10 @@ if (!fs.existsSync(dirUploads)) {
 // Conectar a MongoDB Atlas
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
-        console.log(' 🔌 Conectado exitosamente a MongoDB Atlas (Base de Datos Real)');
+        console.log('  🔌  Conectado exitosamente a MongoDB Atlas (Base de Datos Real)');
         inicializarProyectoBase();
     })
-    .catch(err => console.error(' ❌ Error crítico al conectar a MongoDB:', err));
+    .catch(err => console.error('  ❌  Error crítico al conectar a MongoDB:', err));
 
 // --- DEFINICIÓN DE MODELOS DE MONGOOSE ---
 const UsuarioSchema = new mongoose.Schema({
@@ -68,18 +68,20 @@ const server = http.createServer(app);
 // ==========================================
 // CONFIGURACIÓN PARA EL DESPLIEGUE (CORS)
 // ==========================================
+// URL exacta de tu Vercel (sin el slash / al final para evitar problemas)
+const VERCEL_URL = 'https://tcc-frontend-joyivoc1t-jhan-s-projects1.vercel.app';
+
 const corsOptions = {
     origin: [
         /localhost:\d+$/, // Permite pruebas locales
-        'https://tcc-frontend-red.vercel.app/' // ¡Cámbialo por tu URL real de Vercel cuando la tengas!
+        VERCEL_URL // Permite tu frontend en producción
     ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 };
-app.use(cors({
-  origin: 'https://tcc-frontend-red.vercel.app/',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
+
+// Aplicamos la misma regla de CORS de forma unificada
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // ==========================================
@@ -112,10 +114,13 @@ const verificarRol = (rolesPermitidos) => {
 };
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
+// ==========================================
+// CONFIGURACIÓN DE SOCKET.IO
+// ==========================================
+// Usamos exactamente las mismas opciones de CORS que definimos arriba
 const io = new Server(server, { cors: corsOptions });
 
 async function inicializarProyectoBase() {
@@ -171,7 +176,6 @@ app.post('/api/proyecto/tarea', verificarToken, verificarRol(['Coordinador', 'In
         let proyecto = await Proyecto.findOne();
         if (!proyecto) proyecto = new Proyecto();
         proyecto.tareas.push({ nombre, responsable, estado: 'pendiente' });
-
         const completadas = proyecto.tareas.filter(t => t.estado === 'completada').length;
         proyecto.progreso = proyecto.tareas.length > 0 ? Math.round((completadas / proyecto.tareas.length) * 100) : 0;
         await proyecto.save();
@@ -252,24 +256,19 @@ app.delete('/api/documentos/:id', verificarToken, verificarRol(['Coordinador', '
     try {
         const docId = req.params.id;
         const documento = await Documento.findById(docId);
-
         if (!documento) {
             return res.status(404).json({ mensaje: "Documento no encontrado" });
         }
-
         // Eliminar el archivo físico
         const rutaArchivo = path.join(__dirname, 'uploads', documento.nombreServidor);
         if (fs.existsSync(rutaArchivo)) {
             fs.unlinkSync(rutaArchivo);
         }
-
         // Eliminar de la base de datos
         await Documento.findByIdAndDelete(docId);
-
         // Notificar por websockets para que se borre de todas las pantallas
         const todosLosDocs = await Documento.find().sort({ fecha: -1 });
         io.emit('documentos_actualizados', todosLosDocs);
-
         res.json({ mensaje: "Documento eliminado con éxito" });
     } catch (error) {
         res.status(500).json({ error: "Error al eliminar el documento" });
@@ -315,5 +314,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-    console.log(` 🚀 Servidor POO corriendo perfectamente en el puerto ${PORT}`);
+    console.log(`  🚀  Servidor POO corriendo perfectamente en el puerto ${PORT}`);
 });
