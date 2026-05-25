@@ -9,13 +9,11 @@ const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 
-// Asegurar la existencia de la carpeta para almacenar archivos físicos
 const dirUploads = './uploads';
 if (!fs.existsSync(dirUploads)) {
     fs.mkdirSync(dirUploads);
 }
 
-// Conectar a MongoDB Atlas
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
         console.log('  🔌  Conectado exitosamente a MongoDB Atlas (Base de Datos Real)');
@@ -23,7 +21,6 @@ mongoose.connect(process.env.MONGO_URI)
     })
     .catch(err => console.error('  ❌  Error crítico al conectar a MongoDB:', err));
 
-// --- DEFINICIÓN DE MODELOS DE MONGOOSE ---
 const UsuarioSchema = new mongoose.Schema({
     nombre: String,
     correo: { type: String, unique: true },
@@ -68,19 +65,14 @@ const DocumentoSchema = new mongoose.Schema({
 });
 const Documento = mongoose.models.Documento || mongoose.model('Documento', DocumentoSchema);
 
-// Inicialización de la App
 const app = express();
 const server = http.createServer(app);
 
-// ==========================================
-// CONFIGURACIÓN PARA EL DESPLIEGUE (CORS)
-// ==========================================
-// URL exacta de tu Vercel (sin el slash / al final para evitar problemas)
 const VERCEL_URL = 'https://tcc-frontend-joyivoc1t-jhan-s-projects1.vercel.app';
 
 const corsOptions = {
     origin: function (origin, callback) {
-        // Permite cualquier conexión desde localhost o cualquier dominio de vercel
+
         if (!origin || origin.includes('vercel.app') || origin.includes('localhost')) {
             callback(null, true);
         } else {
@@ -91,13 +83,9 @@ const corsOptions = {
     credentials: true
 };
 
-// Aplicamos la misma regla de CORS de forma unificada
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// ==========================================
-// MIDDLEWARES DE SEGURIDAD (JWT Y ROLES)
-// ==========================================
 const verificarToken = (req, res, next) => {
     const tokenHeader = req.header('Authorization');
     if (!tokenHeader) {
@@ -128,10 +116,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
-// ==========================================
-// CONFIGURACIÓN DE SOCKET.IO
-// ==========================================
-// Usamos exactamente las mismas opciones de CORS que definimos arriba
 const io = new Server(server, { cors: corsOptions });
 
 async function inicializarProyectoBase() {
@@ -152,7 +136,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// --- ENDPOINTS DE PROYECTO Y TAREAS ---
 app.get('/api/proyecto', verificarToken, async (req, res) => {
     try {
         let proyecto = await Proyecto.findOne();
@@ -233,7 +216,6 @@ app.delete('/api/proyecto/tarea/:id', verificarToken, verificarRol(['Coordinador
     }
 });
 
-// --- ENDPOINTS DE SOPORTE DOCUMENTAL ---
 app.post('/api/documentos/subir', verificarToken, upload.single('archivo'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ mensaje: "No se seleccionó ningún archivo" });
@@ -262,7 +244,6 @@ app.get('/api/documentos', verificarToken, async (req, res) => {
     }
 });
 
-// NUEVO ENDPOINT: ELIMINAR DOCUMENTOS (Físico y BD)
 app.delete('/api/documentos/:id', verificarToken, verificarRol(['Coordinador', 'Investigador Principal']), async (req, res) => {
     try {
         const docId = req.params.id;
@@ -270,14 +251,14 @@ app.delete('/api/documentos/:id', verificarToken, verificarRol(['Coordinador', '
         if (!documento) {
             return res.status(404).json({ mensaje: "Documento no encontrado" });
         }
-        // Eliminar el archivo físico
+
         const rutaArchivo = path.join(__dirname, 'uploads', documento.nombreServidor);
         if (fs.existsSync(rutaArchivo)) {
             fs.unlinkSync(rutaArchivo);
         }
-        // Eliminar de la base de datos
+
         await Documento.findByIdAndDelete(docId);
-        // Notificar por websockets para que se borre de todas las pantallas
+
         const todosLosDocs = await Documento.find().sort({ fecha: -1 });
         io.emit('documentos_actualizados', todosLosDocs);
         res.json({ mensaje: "Documento eliminado con éxito" });
@@ -286,7 +267,6 @@ app.delete('/api/documentos/:id', verificarToken, verificarRol(['Coordinador', '
     }
 });
 
-// --- ENDPOINTS PARA CHAT PRIVADO Y USUARIOS ---
 app.get('/api/mensajes', verificarToken, async (req, res) => {
     try {
         const mensajes = await Mensaje.find().sort({ _id: 1 });
@@ -305,7 +285,6 @@ app.get('/api/usuarios', verificarToken, async (req, res) => {
     }
 });
 
-// Lógica de Sockets
 io.on('connection', (socket) => {
     socket.on('enviar_mensaje', async (data) => {
         try {
