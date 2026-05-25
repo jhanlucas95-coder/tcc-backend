@@ -71,11 +71,15 @@ const server = http.createServer(app);
 const corsOptions = {
     origin: [
         /localhost:\d+$/, // Permite pruebas locales
-        'https://tu-frontend-tcc.vercel.app' // ¡Cámbialo por tu URL real de Vercel cuando la tengas!
+        'https://tcc-frontend-red.vercel.app/' // ¡Cámbialo por tu URL real de Vercel cuando la tengas!
     ],
     credentials: true
 };
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: 'https://tcc-frontend-red.vercel.app/',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 
 // ==========================================
