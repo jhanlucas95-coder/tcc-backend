@@ -72,10 +72,14 @@ const server = http.createServer(app);
 const VERCEL_URL = 'https://tcc-frontend-joyivoc1t-jhan-s-projects1.vercel.app';
 
 const corsOptions = {
-    origin: [
-        /localhost:\d+$/, // Permite pruebas locales
-        VERCEL_URL // Permite tu frontend en producción
-    ],
+    origin: function (origin, callback) {
+        // Permite cualquier conexión desde localhost o cualquier dominio de vercel
+        if (!origin || origin.includes('vercel.app') || origin.includes('localhost')) {
+            callback(null, true);
+        } else {
+            callback(new Error('Bloqueado por CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 };
