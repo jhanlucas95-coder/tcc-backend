@@ -46,7 +46,14 @@ const Proyecto = mongoose.models.Proyecto || mongoose.model('Proyecto', Proyecto
 const MensajeSchema = new mongoose.Schema({
     remitente: String,
     texto: String,
-    fecha: { type: String, default: () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+    fecha: {
+        type: String,
+        default: () => new Date().toLocaleTimeString('es-CO', {
+            timeZone: 'America/Bogota',
+            hour: '2-digit',
+            minute: '2-digit'
+        })
+    },
     privado: { type: Boolean, default: false },
     destinatario: { type: String, default: 'Todos' }
 });
